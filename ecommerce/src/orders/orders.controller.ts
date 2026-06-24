@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { authGuard } from 'src/auth/auth.guard';
 import { Roles, RolesGuard } from 'src/guards/roles.guard';
+import { statusUpdateDTO } from './DTO/statusUpdate.DTO';
 
 @Controller('orders')
 @UseGuards(authGuard, RolesGuard)
@@ -22,6 +23,12 @@ export class OrdersController {
     return order;
   }
 
+  @Patch(':id/cancel')
+  async cancelOrder(@Param('id') orderId: string, @Request() req) {
+    const userId = req.user.id;
+    return this.ordersService.cancelOrder(userId, orderId);
+  }
+
   @Get()
   @Roles(['admin'])
   async listOrder() {
@@ -35,4 +42,17 @@ export class OrdersController {
     const order = await this.ordersService.listOrder(userId);
     return order;
   }
+
+  @Patch(':id')
+  @Roles(['admin'])
+  async updateStatus(@Param('id') orderId: string, @Body() status: statusUpdateDTO) {
+    return this.ordersService.updateStatus(orderId, status);
+  }
+
+  @Delete(':id')
+  @Roles(['admin'])
+  async deleteOrder(@Param('id') orderId: string) {
+    return this.ordersService.deleteOrder(orderId);
+  }
+
 }

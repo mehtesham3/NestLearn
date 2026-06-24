@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,6 +11,7 @@ import { CartService } from 'src/cart/cart.service';
 import { ProductsService } from 'src/products/products.service';
 import { Order, OrderStatus } from 'src/schemas/order.schema';
 import { User } from 'src/schemas/users.schema';
+import { statusUpdateDTO } from './DTO/statusUpdate.DTO';
 
 @Injectable()
 export class OrdersService {
@@ -132,5 +134,80 @@ export class OrdersService {
     }
   }
 
+  async cancelOrder(userId: string, orderId: string) {
+    const session = await this.orderModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const order = await this.orderModel.findOne({ _id: orderId, userId: userId }).session(session);
+      if (!order) throw new NotFoundException(`Order with ID: ${orderId} not found`);
+
+      // if (order.userId.toString() !== userId) {
+      //   console.log(`userId string: ${userId}, order userId : ${order.userId.toString()}`)
+      //   throw new ForbiddenException(`You are not authorized to cancel this order`);
+      // }
+
+      if (order.status !== OrderStatus.PENDING) throw new BadRequestException(`Order cannot be cancelled as it is already ${order.status}`);
+
+      let increaseStock: { productId: any, quantity: number }[] = [];
+
+      for (const item of order.items as any) {
+        const product = await this.productService.getProductById(item.productId);
+        if (!product) {
+          throw new NotFoundException(`Product not found for cart item: ${item.productId}`);
+        }
+        const newStock = product.stock + item.quantity;
+
+        increaseStock.push({ productId: item.productId, quantity: newStock });
+      }
+
+      for (const item of increaseStock as any) {
+        await this.productService.updateStockWithId(item.productId, item.quantity, { session });
+      }
+
+      const cancelOrder = await this.orderModel.findByIdAndUpdate(orderId, { status: OrderStatus.CANCELLED, isActive: false }, { new: true }).session(session);
+      if (!cancelOrder) {
+        throw new NotFoundException(`Order with ID: ${orderId} not found`);
+      }
+
+      await session.commitTransaction();
+      return { msg: "Order cancelled successfully", cancelOrder };
+
+    } catch (error) {
+      await session.abortTransaction();
+      throw new InternalServerErrorException(`Failed to cancel order: ${error.message}`);
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async updateStatus(orderid: string, status: statusUpdateDTO) {
+
+    if (status.status === OrderStatus.DELIVERED) {
+      const oderUpdate = await this.orderModel.findByIdAndUpdate(orderid, { status: status.status, isActive: false }, { new: true }).lean();
+      if (!oderUpdate) {
+        throw new NotFoundException(`Order with ID: ${orderid} not found`);
+      }
+      return oderUpdate;
+    }
+
+    const orderExist = await this.orderModel.findByIdAndUpdate(orderid, { status: status.status, isActive: true }, { new: true }).lean();
+    if (!orderExist) {
+      throw new NotFoundException(`Order with ID: ${orderid} not found`);
+    }
+    return orderExist;
+  }
+
+  async deleteOrder(orderId: string) {
+    try {
+
+      const orderExist = await this.orderModel.findByIdAndUpdate(orderId, { isActive: false }, { new: true }).lean();
+      if (!orderExist) throw new NotFoundException(`Order with ID: ${orderId} not found`);
+
+      return { msg: `Order with ID: ${orderId} deleted successfully`, order: orderExist };
+    } catch (error) {
+      throw new InternalServerErrorException(`Failed to delete order: ${error.message}`);
+    }
+  }
 
 }
