@@ -10,14 +10,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { authGuard } from 'src/auth/auth.guard';
+import { authGuard, Public } from 'src/auth/auth.guard';
 import { Roles, RolesGuard } from 'src/guards/roles.guard';
 import { userUpdateDTO } from './DTO/userUpdate.DTO';
 
 @Controller('users')
 @UseGuards(authGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Get()
   @Roles(['admin'])

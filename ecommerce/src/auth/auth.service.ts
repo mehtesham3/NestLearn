@@ -37,7 +37,7 @@ export class AuthService {
   }
 
   // ): Promise<{ user: Omit<User, 'password'>; token: string }> {
-  async login(loginDto: LoginDTO): Promise<{ token: string }> {
+  async login(loginDto: LoginDTO): Promise<{ msg: string }> {
     const isUserExist = await this.userModel.findOne({ email: loginDto.email });
     if (!isUserExist) {
       throw new UnauthorizedException('Invalid credentials');
@@ -55,12 +55,18 @@ export class AuthService {
       id: isUserExist._id,
       email: isUserExist.email,
       role: isUserExist.role,
+      isActive: isUserExist.isActive,
     };
+    if (!isUserExist.isActive)
+      return {
+        msg: `User with emailId: ${isUserExist.email} is suspended by admin. contact admin for more details`,
+      };
+
     const token = await this.jwtService.signAsync(payload);
     const { password, ...userWithoutPassword } = isUserExist.toObject();
 
     // return { user: userWithoutPassword, token };
-    return { token };
+    return { msg: token };
   }
 
   async profile(id: string): Promise<{ user: Omit<User, 'password'> }> {

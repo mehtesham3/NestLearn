@@ -5,17 +5,20 @@ export type ProductDocument = HydratedDocument<Product>;
 
 @Schema()
 export class Product {
-  @Prop()
+  @Prop({ required: true, trim: true, unique: true })
   name: string;
 
-  @Prop()
+  @Prop({ default: '', trim: true })
   description: string;
 
-  @Prop()
+  @Prop({ required: true, min: 0 })
   price: number;
 
-  @Prop({ default: 0 })
+  @Prop({ default: 0, min: 0 })
   stock: number;
+
+  @Prop()
+  category: string;
 
   @Prop({ nullable: true })
   imageUrl: string;
@@ -31,3 +34,5 @@ export class Product {
 }
 
 export const productSchema = SchemaFactory.createForClass(Product);
+
+productSchema.index({ category: 1 });

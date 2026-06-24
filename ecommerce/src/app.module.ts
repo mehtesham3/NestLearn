@@ -6,6 +6,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { UsersModule } from './users/users.module';
+import { ProductsModule } from './products/products.module';
+import { CartModule } from './cart/cart.module';
+import { OrdersModule } from './orders/orders.module';
+console.log('🔍 MONGODB_URI:', process.env.CONN_STRING);
 
 @Module({
   imports: [
@@ -37,6 +41,9 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     UsersModule,
+    ProductsModule,
+    CartModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
