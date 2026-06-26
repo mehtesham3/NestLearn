@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/schemas/users.schema';
@@ -7,19 +7,28 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel('User') private userModel: Model<User>) {}
+  constructor(@InjectModel('User') private userModel: Model<User>) { }
+  private readonly logger = new Logger(UsersService.name);
 
   async getAllUser(): Promise<{
     total: number;
     user: Omit<User, 'password'>[];
   }> {
     const allUser = await this.userModel.find().select('-password');
-    if (!allUser) throw new NotFoundException('User not found ');
+    if (!allUser) {
+      this.logger.error('no users found')
+      throw new NotFoundException('User not found ');
+    }
+    this.logger.log('all users fetched')
     return { total: allUser.length, user: allUser };
   }
   async getUserById(id: string): Promise<{ user: Omit<User, 'password'> }> {
     const user = await this.userModel.findById(id).select('-password');
-    if (!user) throw new NotFoundException('User not found ');
+    if (!user) {
+      this.logger.error(`no user found for id: ${id}`)
+      throw new NotFoundException('User not found ');
+    }
+    this.logger.log(`user fetched for id: ${id}`)
     return { user };
   }
 
@@ -50,9 +59,11 @@ export class UsersService {
       },
     );
 
-    if (!updateUser)
+    if (!updateUser) {
+      this.logger.error(`no user found for id: ${userId}`)
       throw new NotFoundException(`User with id: ${userId} not exist`);
-
+    }
+    this.logger.log(`user updated for id: ${userId}`)
     const { password, ...userWithoutPassword } = updateUser.toObject();
     return { updatedUser: userWithoutPassword };
   }
@@ -67,9 +78,11 @@ export class UsersService {
       returnDocument: 'after',
       lean: true,
     });
-    if (!softDel)
+    if (!softDel) {
+      this.logger.error(`no user found for id: ${userId}`)
       throw new NotFoundException(`User with id:${userId} doesn't exist`);
-    // const userObject = softDel.toObject();
+    }
+    this.logger.log(`user deleted for id: ${userId}`)
     const { password, role, ...user } = softDel;
     return { msg: `User with id:${userId} deleted`, deleteUser: user };
   }
@@ -88,8 +101,11 @@ export class UsersService {
         lean: true,
       },
     );
-    if (!activateUser)
+    if (!activateUser) {
+      this.logger.error(`no user found for id: ${userId}`)
       throw new NotFoundException(`User with id:${userId} doesn't exist`);
+    }
+    this.logger.log(`user activated for id: ${userId}`)
     const { password, role, ...user } = activateUser;
     return { msg: `User with id:${userId} activated`, activateUser: user };
   }

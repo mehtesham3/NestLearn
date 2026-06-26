@@ -9,7 +9,6 @@ import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
-console.log('🔍 MONGODB_URI:', process.env.CONN_STRING);
 
 @Module({
   imports: [
@@ -48,7 +47,7 @@ console.log('🔍 MONGODB_URI:', process.env.CONN_STRING);
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
 
 // TypeOrmModule.forRootAsync({
 //   useFactory: (configService: ConfigService) => ({

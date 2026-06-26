@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -16,6 +17,8 @@ import { ClientSession } from 'mongoose';
 export class ProductsService {
   constructor(@InjectModel('Product') private productModel: Model<Product>) { }
 
+  private readonly logger = new Logger(ProductsService.name)
+
   async createProduct(
     createProduct: createProductDTO,
   ): Promise<Omit<Product, '__v'>> {
@@ -24,6 +27,7 @@ export class ProductsService {
     });
 
     if (existingProduct) {
+      this.logger.error(`Product with name "${createProduct.name}" already exists`);
       throw new ConflictException(
         `Product with name "${createProduct.name}" already exists`,
       );
@@ -43,8 +47,10 @@ export class ProductsService {
 
       // 5. Return clean object (exclude __v)
       const { __v, ...productWithoutVersion } = createdProduct.toObject();
+      this.logger.log(`Product created successfully: ${productWithoutVersion.name}`);
       return productWithoutVersion;
     } catch (error) {
+      this.logger.error(`Failed to create product: ${error.message}`);
       throw new BadRequestException(
         `Failed to create product: ${error.message}`,
       );
@@ -94,7 +100,7 @@ export class ProductsService {
           .exec(),
         this.productModel.countDocuments(query),
       ]);
-
+      this.logger.log(`Products fetched successfully`);
       return {
         msg: 'Products fetched successfully',
         products,
@@ -103,6 +109,7 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
+      this.logger.error(`Failed to fetch product: ${error.message}`);
       throw new BadRequestException(
         `Failed to fetch product: ${error.message}`,
       );
@@ -113,12 +120,15 @@ export class ProductsService {
     try {
       const product = await this.productModel.findById(productId).lean();
 
-      if (!product || !product.isActive)
+      if (!product || !product.isActive) {
+        this.logger.error(`Product with id : ${productId} not found`);
         throw new NotFoundException(`Product with id : ${productId} not found`);
-
+      }
+      this.logger.log(`Product fetched successfully`);
       const { isActive, __v, ...productWithBasicInfo } = product;
       return productWithBasicInfo;
     } catch (error) {
+      this.logger.error(`Failed to fetch product: ${error.message}`);
       throw new BadRequestException(
         `Failed to fetch product: ${error.message}`,
       );
@@ -145,11 +155,14 @@ export class ProductsService {
       const updateItem = await this.productModel
         .findByIdAndUpdate(productId, updateDetails, { new: true })
         .select('-__v');
-      if (!updateItem)
+      if (!updateItem) {
+        this.logger.error(`Product with id: ${productId} not found`);
         throw new NotFoundException(`Product with id: ${productId} not found`);
-
+      }
+      this.logger.log(`Product updated successfully`);
       return { msg: 'Product updated', updateItem };
     } catch (error) {
+      this.logger.error(`Failed to update product: ${error.message}`);
       throw new BadRequestException(
         `Failed to update product: ${error.message}`,
       );
@@ -169,11 +182,14 @@ export class ProductsService {
         },
       );
 
-      if (!delProduct)
+      if (!delProduct) {
+        this.logger.error(`Product with id: ${productId} not found`);
         throw new NotFoundException(`Product with id: ${productId} not found`);
-
+      }
+      this.logger.log(`Product deleted successfully`);
       return { msg: ' Product soft deleted', delProduct };
     } catch (error) {
+      this.logger.error(`Failed to delete product: ${error.message}`);
       throw new BadRequestException(
         `Failed to delete product: ${error.message}`,
       );
@@ -190,14 +206,17 @@ export class ProductsService {
         .findByIdAndUpdate(productId, updateStock, { new: true })
         .select('-__v -description');
 
-      if (!update)
+      if (!update) {
+        this.logger.error(`Product with id: ${productId} not found`);
         throw new NotFoundException(`Product with id: ${productId} not found`);
-
+      }
+      this.logger.log(`Stock updated successfully`);
       return {
         msg: `Stock updated sucessfully time : ${update.updatedAt.toUTCString()}`,
         updateStock: update,
       };
     } catch (error) {
+      this.logger.error(`Failed to update stock: ${error.message}`);
       throw new BadRequestException(`Failed to update stock: ${error.message}`);
     }
   }
@@ -208,6 +227,7 @@ export class ProductsService {
   ) {
     // Validate stock
     if (newStock < 0) {
+      this.logger.error(`Stock cannot be negative (session used)`);
       throw new BadRequestException('Stock cannot be negative');
     }
 
@@ -225,8 +245,10 @@ export class ProductsService {
       .exec();
 
     if (!product) {
+      this.logger.error(`Product with id: ${productId} not found (session used)`);
       throw new NotFoundException(`Product with ID ${productId} not found`);
     }
+    this.logger.log(`Stock updated successfully (session used)`);
 
     return product;
   }
